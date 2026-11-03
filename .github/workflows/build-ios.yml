@@ -1,0 +1,77 @@
+name: Build iOS
+
+# 目的：每次改动都验证 Swift 代码能编译通过。
+#
+# 签名说明：这里刻意用 CODE_SIGNING_ALLOWED=NO 做「只编译不签名」。
+# 没有开发者证书时签名必然失败，而验证代码正确性只需要编译通过。
+# 需要可安装的 IPA，请在本地 Mac 上签名（或另加带证书的 workflow）。
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compile (no signing)
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Build for simulator
+        working-directory: TSPMobile
+        run: |
+          xcodebuild \
+            -project TSPMobile.xcodeproj \
+            -scheme TSPMobile \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Build for device (unsigned)
+        working-directory: TSPMobile
+        run: |
+          xcodebuild \
+            -project TSPMobile.xcodeproj \
+            -scheme TSPMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -derivedDataPath build \
+            build
+
+      - name: Package unsigned .app as .ipa
+        run: |
+          APP=$(find TSPMobile/build -name "TSPMobile.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "未找到 .app，构建产物："
+            find TSPMobile/build -name "*.app" -type d
+            exit 1
+          fi
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry TSPMobile-unsigned.ipa Payload
+          ls -lh TSPMobile-unsigned.ipa
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TSPMobile-unsigned
+          path: TSPMobile-unsigned.ipa
+          retention-days: 14

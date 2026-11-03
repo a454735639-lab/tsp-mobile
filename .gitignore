@@ -1,0 +1,23 @@
+# macOS / Xcode
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# 构建产物
+*.ipa
+*.app
+*.dSYM.zip
+
+# Python / Node（验证脚本用）
+node_modules/
+__pycache__/
+*.pyc
+
+# 本地配置（不要提交）
+*.local.xcconfig
+Secrets.xcconfig
+.env
+.env.local
